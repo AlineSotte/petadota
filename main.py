@@ -1,60 +1,60 @@
 import json
 import requests
 
-dog_data = {
-    "name": "Pipoca",
-    "breed": "Labrador",
-    "age": 2,
-    "color": "Amarelo",
-    "location": "Juiz de Fora",
-    "adoption_status": "Available"
-}
-
-def load_config(config_file: str) -> dict:
-    """Lê um arquivo JSON e retorna as configurações."""
+def load_json(file_path: str) -> dict:
+    """Lê um arquivo JSON e retorna os dados."""
     try:
-        with open(config_file, "r") as file:
-            data = json.load(file)
-            return data
+        with open(file_path, "r") as file:
+            return json.load(file)
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        print(f"Erro ao carregar configuração: {e}")
+        print(f"Erro ao carregar JSON ({file_path}): {e}")
         return {}
 
-def send_request(url: str, data: dict) -> requests.Response:
-    """Envia uma requisição POST para a URL fornecida."""
+def send_post_request(url: str, data: dict) -> requests.Response:
+    """Envia uma requisição POST para a URL especificada com os dados fornecidos."""
     try:
-        response = requests.post(url, json=data, headers={"Content-Type": "application/json"})
-        response.raise_for_status() 
+        response = requests.post(url, json=data)
+        response.raise_for_status()
         return response
-    except requests.exceptions.HTTPError as http_err:
-        print(f"Erro HTTP: {http_err}")
-    except requests.RequestException as req_err:
-        print(f"Erro de requisição: {req_err}")
-    return None
+    except requests.exceptions.RequestException as err:
+        print(f"Erro ao enviar POST para {url}: {err}")
+        return None
 
-def send_webhook(dog: dict, config_file: str) -> None:
-    """Envia os dados do cachorro para a API e Webhook."""
-    config = load_config(config_file)
+def send_get_request(url: str) -> requests.Response:
+    """Envia uma requisição GET para a URL especificada."""
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        return response
+    except requests.exceptions.RequestException as err:
+        print(f"Erro ao enviar GET para {url}: {err}")
+        return None
+
+def process_responses(dog_response, webhook_response):
+    """Processa as respostas das requisições e imprime mensagens de status."""
+    if dog_response and dog_response.status_code == 200:
+        if webhook_response and webhook_response.status_code == 200:
+            print('Enviado com sucesso')
+        else:
+            print(f'Erro ao enviar webhook: {webhook_response.status_code if webhook_response else "N/A"}')
+    else:
+        print(f'Erro ao acessar API de cães: {dog_response.status_code if dog_response else "N/A"}')
+
+def main():
+    config_path = 'caminho arquivo'
+    data_path = 'caminho arquivo'
     
-    if not config or "webhook_url" not in config or "dogs_url" not in config:
-        print("Erro: Configuração inválida ou URLs ausentes.")
+    config = load_json(config_path)
+    dog_data = load_json(data_path)
+    
+    if not config or 'dogs_url' not in config or 'webhook_url' not in config:
+        print("Configurações inválidas.")
         return
     
-    response_api = send_request(config["dogs_url"], dog)
-    if response_api:
-        print("API: Enviado com sucesso.")
-    else:
-        print("Erro ao enviar para a API.")
+    dog_response = send_get_request(config['dogs_url'])
+    webhook_response = send_post_request(config['webhook_url'], dog_data)
     
-    response_webhook = send_request(config["webhook_url"], dog)
-    if response_webhook:
-        print("Webhook: Enviado com sucesso.")
-    else:
-        print("Erro ao enviar para o Webhook.")
-
-def main(dog: dict, config_file: str = "config.json") -> None:
-    """Executa o envio dos dados do cachorro."""
-    send_webhook(dog, config_file)
+    process_responses(dog_response, webhook_response)
 
 if __name__ == "__main__":
-    main(dog_data)
+    main()
